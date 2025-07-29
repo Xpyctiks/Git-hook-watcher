@@ -5,25 +5,25 @@ from pathlib import Path
 
 CONFIG_DIR = "/etc/git-hook-watcher/"
 CONFIG_FILE = os.path.join(CONFIG_DIR,"git-hook-watcher.json")
-TELEGRAM_TOKEN = TELEGRAM_CHATID = LOG_FILE = MARKER_DIR = WEB_ROOT = WEB_DATA_DIR = UID = GID = CHMODFOLDER = CHMODFILES = FILEMARKER_SUFFIX = SITE_PERSONAL_CONFIG = ""
+TELEGRAM_TOKEN = TELEGRAM_CHATID = LOG_FILE = MARKER_DIR = WEB_ROOT = WEB_DATA_DIR = UID = GID = CHMODFOLDER = CHMODFILES = FILEMARKER_SUFFIX = SITE_PERSONAL_CONFIG = PRE_EXEC = POST_EXEC = ""
 
 def load_config() -> None:
     """
     Check if config file exists. If not - generate the new one.
     """
     success = 0
-    global TELEGRAM_TOKEN, TELEGRAM_CHATID, LOG_FILE, MARKER_DIR, WEB_ROOT, WEB_DATA_DIR, UID, GID, CHMODFOLDER, CHMODFILES, FILEMARKER_SUFFIX, SITE_PERSONAL_CONFIG 
+    global TELEGRAM_TOKEN, TELEGRAM_CHATID, LOG_FILE, MARKER_DIR, WEB_ROOT, WEB_DATA_DIR, UID, GID, CHMODFOLDER, CHMODFILES, FILEMARKER_SUFFIX, SITE_PERSONAL_CONFIG, PRE_EXEC, POST_EXEC
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'r',encoding='utf8') as file:
             config = json.load(file)
         for id,key in enumerate(config.keys()):
-            if (key in ["logFile", "markerDir", "rootCacheDir", "webRoot", "webDataDir", "uID", "gID", "chMODfolder", "chMODfiles", "fileMarkerSuffix", "sitePersonalConfigName"]):
+            if (key in ["logFile", "markerDir", "rootCacheDir", "webRoot", "webDataDir", "uID", "gID", "chMODfolder", "chMODfiles", "fileMarkerSuffix", "sitePersonalConfigName", "pre-exec", "post-exec"]):
                 if config.get(key) in [None, "", "None"]:
                     print(f"Important parameter of {key} is not defined! Can't proceed")
                     exit(1)
                 else:
                     success += 1
-        if success != 11:
+        if success != 13:
             print(f"Some variables are not set in config file. Please fix it then run the program again.")
             exit(1)
         TELEGRAM_TOKEN = config.get('telegramToken').strip()
@@ -38,6 +38,8 @@ def load_config() -> None:
         CHMODFILES = config.get('chMODfiles').strip()
         FILEMARKER_SUFFIX = config.get('fileMarkerSuffix').strip()
         SITE_PERSONAL_CONFIG = config.get('sitePersonalConfigName').strip()
+        PRE_EXEC = config.get('pre-exec').strip()
+        POST_EXEC = config.get('post-exec').strip()
         logging.basicConfig(filename=LOG_FILE,level=logging.INFO,format='%(asctime)s - Git-Hook-Watcher - %(levelname)s - %(message)s',datefmt='%d-%m-%Y %H:%M:%S')
     else:
         generate_default_config()
@@ -46,7 +48,7 @@ def generate_default_config() -> None:
     """
     Checks every application loads if the app's configuration exists. If not - creates config file with default values
     """
-    global TELEGRAM_TOKEN, TELEGRAM_CHATID, LOG_FILE, MARKER_DIR, WEB_ROOT, WEB_DATA_DIR, UID, GID, CHMODFOLDER, CHMODFILES, FILEMARKER_SUFFIX, SITE_PERSONAL_CONFIG
+    global TELEGRAM_TOKEN, TELEGRAM_CHATID, LOG_FILE, MARKER_DIR, WEB_ROOT, WEB_DATA_DIR, UID, GID, CHMODFOLDER, CHMODFILES, FILEMARKER_SUFFIX, SITE_PERSONAL_CONFIG, PRE_EXEC, POST_EXEC
     config =  {
         "telegramToken": "",
         "telegramChat": "",
@@ -59,7 +61,9 @@ def generate_default_config() -> None:
         "uID": "*",
         "gID": "*",
         "chMODfolder": "770",
-        "chMODfiles": "660"
+        "chMODfiles": "660",
+        "pre-exec": "*",
+        "post-exec": "*"
     }
     if not os.path.exists(CONFIG_DIR):
         os.mkdir(CONFIG_DIR)
@@ -117,18 +121,46 @@ def exec_script(script: str, domain: str, type: str) -> None:
     """
     Executes pre/post-script, defined in personal config file for domain. Full path to script required.Type is: pre-script or post-script.
     """
-    logging.info(f"{type} found:{script}. Starting the script...")
-    if os.path.exists(script):
-        result = subprocess.run(script, capture_output=True, text=True, shell=True)
+    if type == "pre-script":
+        if PRE_EXEC == "-":#If "-" set in global config - disable any PRE scripts
+            logging.info(f"{type}: execution of scripts is globally disabled...")
+            return
+        elif PRE_EXEC != "-" and PRE_EXEC != "*":
+            logging.info(f"{type}: found globally enabled script {PRE_EXEC}")
+            _SCRIPT = PRE_EXEC
+        elif PRE_EXEC == "*":
+            if script == "None":
+                logging.info("No pre-script found for this domain.")
+                return
+            else:
+                logging.info(f"Pre-script found for this domain: {script}")
+                _SCRIPT = script
+    if type == "post-script":
+        if POST_EXEC == "-":#If "-" set in global config - disable any POST scripts
+            logging.info(f"{type}: execution of scripts is globally disabled...")
+            return
+        elif POST_EXEC != "-" and POST_EXEC != "*":
+            logging.info(f"{type}: found globally enabled script {POST_EXEC}")
+            _SCRIPT = POST_EXEC
+        elif POST_EXEC == "*":
+            if script == "None":
+                logging.info("No post-script found for this domain.")
+                return
+            else:
+                logging.info(f"Post-script found for this domain: {script}")
+                _SCRIPT = script
+    """Main function"""
+    if os.path.exists(_SCRIPT):
+        result = subprocess.run(_SCRIPT, capture_output=True, text=True, shell=True)
         logging.info(str(result))
         if result.returncode == 0:
-            logging.info(f"{type} {script} for domain {domain} finished. Starting pull...")
+            logging.info(f"{type} {_SCRIPT} for domain {domain} finished. Starting pull...")
         else:
-            logging.error(f"{type} {script} for domain {domain} finished with error!")
-            asyncio.run(send_to_telegram(f"⚠{type} {script} for domain {domain} finished with error."))
+            logging.error(f"{type} {_SCRIPT} for domain {domain} finished with error!")
+            asyncio.run(send_to_telegram(f"⚠{type} {_SCRIPT} for domain {domain} finished with error."))
     else:
-        logging.error(f"{type} {script} for domain {domain} is not exists!")
-        asyncio.run(send_to_telegram(f"⚠{type} {script} for domain {domain} is not exists!"))
+        logging.error(f"{type} {_SCRIPT} for domain {domain} is not exists!")
+        asyncio.run(send_to_telegram(f"⚠{type} {_SCRIPT} for domain {domain} is not exists!"))
 
 def purge_cache(cache_path: str) -> None:
     """
@@ -159,7 +191,7 @@ def purge_cache(cache_path: str) -> None:
 
 def set_rights(data_folder: str, dir_rights: str, file_rights: str) -> None:
     """
-    Sets UID and GID for files and folders and do chmod for them after pull is completed.Requires:\n
+    Sets rights for files and folders after pull is completed.Requires:\n
     dir_rights - default "770". "-" means don't change dir_rights\n
     file_rights - default "660". "-" means don't change file_rights
     """
@@ -297,15 +329,34 @@ def set_owner(data_folder: str, uid: str, gid: str, dir_rights: str, file_rights
         asyncio.run(send_to_telegram(f"⚠Set_owner(): set UID and GID failed because we are not in expected dir. - {data_folder}. We are in {os.getcwd()}"))
     set_rights(data_folder, dir_rights, file_rights)
 
-def make_pull() -> None:
+def del_marker(domain: str) -> None:
+    """
+    Little function deletes file marker to prevent loop launch of the script if any error occurs
+    """
+    try:
+        os.chdir(Path(__file__).resolve().parent)
+        os.unlink(os.path.join(MARKER_DIR,domain+FILEMARKER_SUFFIX))
+        logging.info(f"File-marker {os.path.join(MARKER_DIR,domain+FILEMARKER_SUFFIX)} deleted successfully")
+    except Exception as msg:
+        logging.error(f"File-marker deletion error: {os.path.join(MARKER_DIR,domain+FILEMARKER_SUFFIX)} was not deleted")
+        asyncio.run(send_to_telegram(f"⚠File-marker deletion error: {os.path.join(MARKER_DIR,domain+FILEMARKER_SUFFIX)} was not deleted"))
+
+def main() -> None:
     """
     Main function which makes pull from repo. and does a few additional steps
     """
     PULL_LIST = glob.glob("*"+FILEMARKER_SUFFIX)
+    if len(PULL_LIST) == 0:#if the script is launched, but no marker found - just silently quit
+        exit(0)
+    check_running()
+    with open("/var/run/git-hook-watcher.pid", 'w',encoding='utf8') as file:
+        file.write(str(os.getpid()))
+    os.chdir(Path(__file__).resolve().parent)
     for i in range(len(PULL_LIST)):
         PULL_LIST[i] = PULL_LIST[i].replace(FILEMARKER_SUFFIX, "")
     logging.info(f"List of domains for pull: {PULL_LIST}")
     for domain in PULL_LIST:
+        logging.info("-----------------------------------------Starting git-hook-watcher script-----------------------------------------")
         logging.info(f">>>>>>> Starting domain {domain}")
         logging.info(f"Heading to dir. {os.path.join(WEB_ROOT,domain)} for additional config file for Git-hook-watcher {os.path.join(WEB_ROOT,domain,SITE_PERSONAL_CONFIG)}")
         """Generating full path to a website main folder with the personal config file name"""
@@ -319,12 +370,12 @@ def make_pull() -> None:
                 PERSONAL_CONFIG = json.load(file)
                 """Parsing the file for any valid value in there"""
                 for key in PERSONAL_CONFIG:
-                    if key == "execPre":
-                        EXEC_PRE_SCRIPT = PERSONAL_CONFIG.get('execPre').strip()
-                        VALUES_LIST.append("execPre")
-                    elif key == "execPost":
-                        EXEC_POST_SCRIPT = PERSONAL_CONFIG.get('execPost').strip()
-                        VALUES_LIST.append("execPost")
+                    if key == "pre-exec":
+                        EXEC_PRE_SCRIPT = PERSONAL_CONFIG.get('pre-exec').strip()
+                        VALUES_LIST.append("pre-exec")
+                    elif key == "post-exec":
+                        EXEC_POST_SCRIPT = PERSONAL_CONFIG.get('post-exec').strip()
+                        VALUES_LIST.append("post-exec")
                     elif key == "uid":
                         _UID = PERSONAL_CONFIG.get('uid').strip()
                         VALUES_LIST.append("uid")
@@ -353,6 +404,8 @@ def make_pull() -> None:
                 REQUESTED_BRANCH = REQUESTED_BRANCH.split('/',3)[2]
         except Exception as msg:
             logging.error(f"Error exception while reading marker file {os.path.join(MARKER_DIR,domain+FILEMARKER_SUFFIX)}! {msg}")
+            asyncio.run(send_to_telegram(f"⚠Error reading marker file {os.path.join(MARKER_DIR,domain+FILEMARKER_SUFFIX)}! {msg}"))
+            del_marker(domain)
             continue
         logging.info(f"Got data from the marker file {os.path.join(MARKER_DIR,domain+FILEMARKER_SUFFIX)}: COMMIT_ID:{COMMIT_ID}, DOMAIN:{DOMAIN}, REQUESTED_BRANCH:{REQUESTED_BRANCH}, REDIRECTS_LIST:{REDIRECTS_LIST}")
         """Making decision - do we make redirect or not"""
@@ -363,11 +416,14 @@ def make_pull() -> None:
             if not os.path.exists(REDIRECTS_LIST[0][REQUESTED_BRANCH]):
                 logging.error(f"Redirection path {REDIRECTS_LIST[0][REQUESTED_BRANCH]}, which is set for branch {REQUESTED_BRANCH}, is not exists! Skipping this domain...")
                 asyncio.run(send_to_telegram(f"🚨Redirection path \"{REDIRECTS_LIST[0][REQUESTED_BRANCH]}\", which is set for branch \"{REQUESTED_BRANCH}\", is not exists!"))
+                del_marker(domain)
                 continue
             """If everything is ok - heading to the folder"""
             os.chdir(REDIRECTS_LIST[0][REQUESTED_BRANCH])
             if "EXEC_PRE_SCRIPT" in locals(): #if there is set pre-exec script for current domain - execute it before all other steps
                 exec_script(EXEC_PRE_SCRIPT, domain, "pre-script")
+            else:
+                exec_script("None", domain, "pre-script")
             result = subprocess.run("git pull", capture_output=True, text=True, shell=True)
             logging.info(str(result))
             if result.returncode == 0:
@@ -380,11 +436,13 @@ def make_pull() -> None:
                     DIR_RIGHTS = "None"
                 if not "FILE_RIGHTS" in locals():
                     FILE_RIGHTS = "None"
-                set_owner(REDIRECTS_LIST[0][REQUESTED_BRANCH], _UID, _GID, DIR_RIGHTS, FILE_RIGHTS)
+                set_owner(os.path.join(WEB_ROOT,domain,WEB_DATA_DIR), _UID, _GID, DIR_RIGHTS, FILE_RIGHTS)
                 if "CACHE_PATH" in locals():
                     purge_cache(CACHE_PATH)
                 if "EXEC_POST_SCRIPT" in locals(): #if there is set post-exec script for current domain - execute it after all steps are finished
                     exec_script(EXEC_POST_SCRIPT, domain, "post-script")
+                else:
+                    exec_script("None", domain, "post-script")
                 asyncio.run(send_to_telegram(f"✅Pull with redirect completed!\nDomain: {domain}\nRedirect to: {REDIRECTS_LIST[0][REQUESTED_BRANCH]}\nBranch: {REQUESTED_BRANCH}\nCommitID: {COMMIT_ID}"))
             else:
                 logging.error(f"Pull with redirect error! Domain: {domain}, Redirect to: {REDIRECTS_LIST[0][REQUESTED_BRANCH]}, Branch: {REQUESTED_BRANCH}, CommitID: {COMMIT_ID}")
@@ -396,11 +454,14 @@ def make_pull() -> None:
             if not os.path.exists(os.path.join(WEB_ROOT,domain,WEB_DATA_DIR)):
                 logging.error(f"Path {os.path.join(WEB_ROOT,domain,WEB_DATA_DIR)}, which is set for branch {REQUESTED_BRANCH}, is not exists! Skipping this domain...")
                 asyncio.run(send_to_telegram(f"🚨Path {os.path.join(WEB_ROOT,domain,WEB_DATA_DIR)}, which is set for branch {REQUESTED_BRANCH}, is not exists! Skipping this domain..."))
+                del_marker(domain)
                 continue
             """If everything is ok - heading to the folder"""
             os.chdir(os.path.join(WEB_ROOT,domain,WEB_DATA_DIR))
             if "EXEC_PRE_SCRIPT" in locals(): #if there is set pre-exec script for current domain - execute it before all other steps
                 exec_script(EXEC_PRE_SCRIPT, domain, "pre-script")
+            else:
+                exec_script("None", domain, "pre-script")
             result = subprocess.run("git pull", capture_output=True, text=True, shell=True)
             logging.info(str(result))
             if result.returncode == 0:
@@ -413,33 +474,21 @@ def make_pull() -> None:
                     DIR_RIGHTS = "None"
                 if not "FILE_RIGHTS" in locals():
                     FILE_RIGHTS = "None"
-                set_owner(REDIRECTS_LIST[0][REQUESTED_BRANCH], _UID, _GID, DIR_RIGHTS, FILE_RIGHTS)
+                set_owner(os.path.join(WEB_ROOT,domain,WEB_DATA_DIR), _UID, _GID, DIR_RIGHTS, FILE_RIGHTS)
                 if "CACHE_PATH" in locals():
                     purge_cache(CACHE_PATH)
                 if "EXEC_POST_SCRIPT" in locals(): #if there is set post-exec script for current domain - execute it after all steps are finished
                     exec_script(EXEC_POST_SCRIPT, domain, "post-script")
+                else:
+                    exec_script("None", domain, "post-script")
                 asyncio.run(send_to_telegram(f"✅Pull completed!\nDomain: {domain}\nPath: {os.path.join(WEB_ROOT,domain,WEB_DATA_DIR)}\nBranch: {REQUESTED_BRANCH}\nCommitID: {COMMIT_ID}"))
             else:
                 logging.error(f"Pull error! Domain: {domain}, Path: {os.path.join(WEB_ROOT,domain,WEB_DATA_DIR)}, Branch: {REQUESTED_BRANCH}, CommitID: {COMMIT_ID}")
                 asyncio.run(send_to_telegram(f"🚨Pull error!\nDomain: {domain}, Path: {os.path.join(WEB_ROOT,domain,WEB_DATA_DIR)}, Branch: {REQUESTED_BRANCH}, CommitID: {COMMIT_ID}\n{result.stderr}"))
-        try:
-            os.chdir(Path(__file__).resolve().parent)
-            os.unlink(os.path.join(MARKER_DIR,domain+FILEMARKER_SUFFIX))
-            logging.info(f"File-marker {os.path.join(MARKER_DIR,domain+FILEMARKER_SUFFIX)} deleted successfully")
-        except Exception as msg:
-            logging.error(f"File-marker deletion error: {os.path.join(MARKER_DIR,domain+FILEMARKER_SUFFIX)} was not deleted")
-            asyncio.run(send_to_telegram(f"⚠File-marker deletion error: {os.path.join(MARKER_DIR,domain+FILEMARKER_SUFFIX)} was not deleted"))
+        del_marker(domain)
         logging.info(f">>>>>>> Finished domain {domain}")
-
-def main() -> None:
-    check_running()
-    with open("/var/run/git-hook-watcher.pid", 'w',encoding='utf8') as file:
-            file.write(str(os.getpid()))
-    os.chdir(Path(__file__).resolve().parent)
-    make_pull()
 
 if __name__ == "__main__":
     load_config()
-    logging.info("-----------------------------------------Starting git-hook-watcher script-----------------------------------------")
     main()
     finish_job()

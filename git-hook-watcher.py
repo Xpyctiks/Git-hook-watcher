@@ -358,6 +358,7 @@ def main() -> None:
     for domain in PULL_LIST:
         logging.info("-----------------------------------------Starting git-hook-watcher script-----------------------------------------")
         logging.info(f">>>>>>> Starting domain {domain}")
+        asyncio.run(send_to_telegram(f"👀Starting pull job for domain {domain}"))
         logging.info(f"Heading to dir. {os.path.join(WEB_ROOT,domain)} for additional config file for Git-hook-watcher {os.path.join(WEB_ROOT,domain,SITE_PERSONAL_CONFIG)}")
         """Generating full path to a website main folder with the personal config file name"""
         PERSONAL_CONFIG_FILE = os.path.join(WEB_ROOT,domain,SITE_PERSONAL_CONFIG)

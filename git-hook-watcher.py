@@ -23,7 +23,7 @@ def load_config() -> None:
                     exit(1)
                 else:
                     success += 1
-        if success != 13:
+        if success != 12:
             print(f"Some variables are not set in config file. Please fix it then run the program again.")
             exit(1)
         TELEGRAM_TOKEN = config.get('telegramToken').strip()

@@ -17,7 +17,7 @@ def load_config() -> None:
         with open(CONFIG_FILE, 'r',encoding='utf8') as file:
             config = json.load(file)
         for id,key in enumerate(config.keys()):
-            if (key in ["logFile", "markerDir", "rootCacheDir", "webRoot", "webDataDir", "uID", "gID", "chMODfolder", "chMODfiles", "fileMarkerSuffix", "sitePersonalConfigName", "pre-exec", "post-exec"]):
+            if (key in ["logFile", "markerDir", "webRoot", "webDataDir", "uID", "gID", "chMODfolder", "chMODfiles", "fileMarkerSuffix", "sitePersonalConfigName", "pre-exec", "post-exec"]):
                 if config.get(key) in [None, "", "None"]:
                     print(f"Important parameter of {key} is not defined! Can't proceed")
                     exit(1)

@@ -348,13 +348,13 @@ def main() -> None:
     PULL_LIST = glob.glob("*"+FILEMARKER_SUFFIX)
     if len(PULL_LIST) == 0:#if the script is launched, but no marker found - just silently quit
         exit(0)
+    logging.info("-----------------------------------------Starting git-hook-watcher script-----------------------------------------")
     check_running()
     with open("/var/run/git-hook-watcher.pid", 'w',encoding='utf8') as file:
         file.write(str(os.getpid()))
     for i in range(len(PULL_LIST)):
         PULL_LIST[i] = PULL_LIST[i].replace(FILEMARKER_SUFFIX, "")
     logging.info(f"List of domains for pull: {PULL_LIST}")
-    logging.info("-----------------------------------------Starting git-hook-watcher script-----------------------------------------")
     for domain in PULL_LIST:
         logging.info(f">>>>>>> Starting domain {domain}")
         asyncio.run(send_to_telegram(f"👀Starting pull job for domain {domain}"))
@@ -486,6 +486,8 @@ def main() -> None:
                 logging.error(f"Pull error! Domain: {domain}, Path: {os.path.join(WEB_ROOT,domain,WEB_DATA_DIR)}, Branch: {REQUESTED_BRANCH}, CommitID: {COMMIT_ID}")
                 asyncio.run(send_to_telegram(f"🚨Pull error!\nDomain: {domain}, Path: {os.path.join(WEB_ROOT,domain,WEB_DATA_DIR)}, Branch: {REQUESTED_BRANCH}, CommitID: {COMMIT_ID}\n{result.stderr}"))
         del_marker(domain)
+        if len(PULL_LIST) > 1:
+            asyncio.run(send_to_telegram(f"🫠Another job is pending. Starting that one."))
         logging.info(f">>>>>>> Finished domain {domain}")
 
 if __name__ == "__main__":

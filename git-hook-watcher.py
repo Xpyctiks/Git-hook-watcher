@@ -83,7 +83,6 @@ def check_running() -> None:
         if os.path.exists(os.path.join("/proc/",PID)):
             print(f"Error! Another copy with PID={PID} is still running!")
             logging.error(f"Error! Another copy with PID={PID} is still running!")
-            asyncio.run(send_to_telegram(f"Error! Another copy with PID={PID} is still running!"))
             exit(1)
         else:
             logging.info("Old PID file found from previous launch, which hasn't been removed")

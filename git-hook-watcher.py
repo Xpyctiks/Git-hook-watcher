@@ -355,7 +355,9 @@ def main() -> None:
     for i in range(len(PULL_LIST)):
         PULL_LIST[i] = PULL_LIST[i].replace(FILEMARKER_SUFFIX, "")
     logging.info(f"List of domains for pull: {PULL_LIST}")
+    currentJobNumer = 0
     for domain in PULL_LIST:
+        currentJobNumer = currentJobNumer + 1
         logging.info(f">>>>>>> Starting domain {domain}")
         asyncio.run(send_to_telegram(f"👀Starting pull job for domain {domain}"))
         logging.info(f"Heading to dir. {os.path.join(WEB_ROOT,domain)} for additional config file for Git-hook-watcher {os.path.join(WEB_ROOT,domain,SITE_PERSONAL_CONFIG)}")
@@ -486,9 +488,11 @@ def main() -> None:
                 logging.error(f"Pull error! Domain: {domain}, Path: {os.path.join(WEB_ROOT,domain,WEB_DATA_DIR)}, Branch: {REQUESTED_BRANCH}, CommitID: {COMMIT_ID}")
                 asyncio.run(send_to_telegram(f"🚨Pull error!\nDomain: {domain}, Path: {os.path.join(WEB_ROOT,domain,WEB_DATA_DIR)}, Branch: {REQUESTED_BRANCH}, CommitID: {COMMIT_ID}\n{result.stderr}"))
         del_marker(domain)
-        if len(PULL_LIST) > 1:
+        if len(PULL_LIST) > 1 and currentJobNumer != len(PULL_LIST):
             asyncio.run(send_to_telegram(f"🫠Another job is pending. Starting that one."))
         logging.info(f">>>>>>> Finished domain {domain}")
+        if len(PULL_LIST) > 1 and currentJobNumer == len(PULL_LIST):
+            asyncio.run(send_to_telegram(f"👌All jobs are done! Have fun!"))
 
 if __name__ == "__main__":
     load_config()

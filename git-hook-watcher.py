@@ -490,9 +490,11 @@ def main() -> None:
         del_marker(domain)
         if len(PULL_LIST) > 1 and currentJobNumer != len(PULL_LIST):
             asyncio.run(send_to_telegram(f"🫠Another job is pending. Starting that one."))
+            logging.info("Another job is pending. Starting that one.")
         logging.info(f">>>>>>> Finished domain {domain}")
         if len(PULL_LIST) > 1 and currentJobNumer == len(PULL_LIST):
             asyncio.run(send_to_telegram(f"👌All jobs are done! Have fun!"))
+            logging.info("All jobs are done! Have fun!")
 
 if __name__ == "__main__":
     load_config()

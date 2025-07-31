@@ -345,18 +345,18 @@ def main() -> None:
     """
     Main function which makes pull from repo. and does a few additional steps
     """
+    os.chdir(Path(__file__).resolve().parent)
     PULL_LIST = glob.glob("*"+FILEMARKER_SUFFIX)
     if len(PULL_LIST) == 0:#if the script is launched, but no marker found - just silently quit
         exit(0)
     check_running()
     with open("/var/run/git-hook-watcher.pid", 'w',encoding='utf8') as file:
         file.write(str(os.getpid()))
-    os.chdir(Path(__file__).resolve().parent)
     for i in range(len(PULL_LIST)):
         PULL_LIST[i] = PULL_LIST[i].replace(FILEMARKER_SUFFIX, "")
     logging.info(f"List of domains for pull: {PULL_LIST}")
+    logging.info("-----------------------------------------Starting git-hook-watcher script-----------------------------------------")
     for domain in PULL_LIST:
-        logging.info("-----------------------------------------Starting git-hook-watcher script-----------------------------------------")
         logging.info(f">>>>>>> Starting domain {domain}")
         asyncio.run(send_to_telegram(f"👀Starting pull job for domain {domain}"))
         logging.info(f"Heading to dir. {os.path.join(WEB_ROOT,domain)} for additional config file for Git-hook-watcher {os.path.join(WEB_ROOT,domain,SITE_PERSONAL_CONFIG)}")

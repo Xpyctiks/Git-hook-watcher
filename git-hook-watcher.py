@@ -226,7 +226,7 @@ def set_rights(data_folder: str, dir_rights: str, file_rights: str) -> None:
         _FILES_RIGHTS = "None"
         logging.info(f"Set_rights(FILE): Got \"-\" from additional config - disabling set of rights.")
     """Set all rights now"""
-    if os.getcwd() == data_folder:
+    if os.path.join(os.getcwd(),"") == data_folder:
         if _DIR_RIGHTS != "None":
             logging.info(f"Starting set dir_rights to {_DIR_RIGHTS}")
             result = subprocess.run("find -type d -exec chmod " + _DIR_RIGHTS + " '{}' ';'", capture_output=True, text=True, shell=True)
@@ -295,7 +295,7 @@ def set_owner(data_folder: str, uid: str, gid: str, dir_rights: str, file_rights
         _GID = os.stat(os.getcwd()).st_gid
         logging.info(f"Set_owner(GID): Got \"*\" from additional config - set of folder's owner {_GID}")
     """Set UID and GID now"""
-    if os.getcwd() == data_folder:
+    if os.path.join(os.getcwd(),"") == data_folder:
         if _UID != "None" and _GID != "None":
             logging.info(f"Starting set UID {_UID} and GID {_GID}:")
             result = subprocess.run(f"chown -R {_UID}:{_GID} *", capture_output=True, text=True, shell=True)

@@ -226,7 +226,7 @@ def set_rights(data_folder: str, dir_rights: str, file_rights: str) -> None:
         _FILES_RIGHTS = "None"
         logging.info(f"Set_rights(FILE): Got \"-\" from additional config - disabling set of rights.")
     """Set all rights now"""
-    if os.path.join(os.getcwd(),"") == data_folder:
+    if os.path.join(os.getcwd(),"") == os.path.join(data_folder,""):
         if _DIR_RIGHTS != "None":
             logging.info(f"Starting set dir_rights to {_DIR_RIGHTS}")
             result = subprocess.run("find -type d -exec chmod " + _DIR_RIGHTS + " '{}' ';'", capture_output=True, text=True, shell=True)
@@ -246,8 +246,8 @@ def set_rights(data_folder: str, dir_rights: str, file_rights: str) -> None:
                 logging.error("Set of file_rights failed!")
                 asyncio.run(send_to_telegram(f"⚠Set_rights(): set of file_rights failed!"))
     else:
-        logging.error(f"Set_owner(): set UID and GID failed because we are not in expected dir. - {data_folder}. We are in {os.getcwd()}")
-        asyncio.run(send_to_telegram(f"⚠Set_owner(): set UID and GID failed because we are not in expected dir. - {data_folder}. We are in {os.getcwd()}"))
+        logging.error(f"Set_owner(): set UID and GID failed because we are not in expected dir. - {data_folder}. We are in {os.path.join(os.getcwd(),'')}")
+        asyncio.run(send_to_telegram(f"⚠Set_owner(): set UID and GID failed because we are not in expected dir. - {data_folder}. We are in {os.path.join(os.getcwd(),'')}"))
 
 def set_owner(data_folder: str, uid: str, gid: str, dir_rights: str, file_rights: str) -> None:
     """
@@ -295,7 +295,7 @@ def set_owner(data_folder: str, uid: str, gid: str, dir_rights: str, file_rights
         _GID = os.stat(os.getcwd()).st_gid
         logging.info(f"Set_owner(GID): Got \"*\" from additional config - set of folder's owner {_GID}")
     """Set UID and GID now"""
-    if os.path.join(os.getcwd(),"") == data_folder:
+    if os.path.join(os.getcwd(),"") == os.path.join(data_folder,""):
         if _UID != "None" and _GID != "None":
             logging.info(f"Starting set UID {_UID} and GID {_GID}:")
             result = subprocess.run(f"chown -R {_UID}:{_GID} *", capture_output=True, text=True, shell=True)
@@ -324,8 +324,8 @@ def set_owner(data_folder: str, uid: str, gid: str, dir_rights: str, file_rights
                 logging.error("Set of GID failed!")
                 asyncio.run(send_to_telegram(f"⚠Set_owner(): set of GID failed!"))
     else:
-        logging.error(f"Set_owner(): set UID and GID failed because we are not in expected dir. - {data_folder}. We are in {os.getcwd()}")
-        asyncio.run(send_to_telegram(f"⚠Set_owner(): set UID and GID failed because we are not in expected dir. - {data_folder}. We are in {os.getcwd()}"))
+        logging.error(f"Set_owner(): set UID and GID failed because we are not in expected dir. - {data_folder}. We are in {os.path.join(os.getcwd(),'')}")
+        asyncio.run(send_to_telegram(f"⚠Set_owner(): set UID and GID failed because we are not in expected dir. - {data_folder}. We are in {os.path.join(os.getcwd(),'')}"))
     set_rights(data_folder, dir_rights, file_rights)
 
 def del_marker(domain: str) -> None:
